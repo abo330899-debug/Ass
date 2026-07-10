@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Public Camera</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f172a; color: white; font-family: Arial, sans-serif; }
+    .app { max-width: 760px; margin: auto; padding: 18px; }
+    h1 { margin-bottom: 8px; }
+    #reader { background: #000; border-radius: 16px; overflow: hidden; margin-top: 15px; }
+    button { border: 0; padding: 12px 16px; border-radius: 12px; margin: 10px 5px; font-weight: bold; cursor: pointer; }
+    .start { background: #22c55e; color: #052e16; }
+    .stop { background: #ef4444; color: white; }
+    .box { background: rgba(255,255,255,.08); padding: 12px; border-radius: 12px; margin-top: 12px; color: #cbd5e1; word-break: break-word; line-height: 1.7; }
+    input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #334155; background: #020617; color: white; margin-top: 12px; direction: ltr; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>قراءة رمز الاستجابة السريعة</h1>
+    <div class="box">
+      QR Public خاص بسيرفرك فقط.<br>
+      الأفضل أن يكون QR داخله رابط كامل:<br>
+      https://your-domain.com/qrpubliclink/DOC-1001
+    </div>
+    <div id="reader"></div>
+    <button class="start" onclick="start()">تشغيل الكاميرا</button>
+    <button class="stop" onclick="stop()">إيقاف الكاميرا</button>
+    <div class="box" id="result">بانتظار القراءة...</div>
+    <input id="manual" placeholder="اكتب DOC-1001 أو رابط qrpubliclink" />
+    <button class="start" onclick="manualOpen()">قراءة يدوية</button>
+  </div>
+
+  <script>
+    let qr = null;
+    let running = false;
+    let lastRead = "";
+    const result = document.getElementById("result");
+
+    function extractCode(decodedText) {
+      const text = String(decodedText || "").trim();
+      try {
+        const url = new URL(text);
+        const queryCode = url.searchParams.get("code");
+        if (queryCode) return queryCode.trim();
+        const parts = url.pathname.split("/").filter(Boolean);
+        const index = parts.indexOf("qrpubliclink");
+        if (index !== -1 && parts[index + 1]) return decodeURIComponent(parts[index + 1]).trim();
+        return text;
+      } catch {
+        return text;
+      }
+    }
+
+    function buildTarget(decodedText) {
+      const code = extractCode(decodedText);
+      return `/qrpubliclink/${encodeURIComponent(code)}`;
+    }
+
+    async function start() {
+      if (running) return;
+      qr = new Html5Qrcode("reader");
+      await qr.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 260, height: 260 } },
+        async (decodedText) => {
+          if (decodedText === lastRead) return;
+          lastRead = decodedText;
+          result.textContent = "تمت القراءة: " + decodedText;
+          await stop();
+          location.href = buildTarget(decodedText);
+        },
+        () => {}
+      );
+      running = true;
+      result.textContent = "الكاميرا تعمل... وجه الكاميرا نحو QR";
+    }
+
+    async function stop() {
+      if (qr && running) {
+        await qr.stop();
+        await qr.clear();
+      }
+      running = false;
+    }
+
+    function manualOpen() {
+      const value = document.getElementById("manual").value.trim();
+      if (!value) return;
+      location.href = buildTarget(value);
+    }
+  </script>
+</body>
+</html>
