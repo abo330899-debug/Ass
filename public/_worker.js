@@ -73,7 +73,7 @@ function createPage() {
   <div class="wrap">
     <div class="card">
       <h1>إنشاء وثيقة من قبل الشركة</h1>
-      <div class="hint">املأ المعلومات، بعدها النظام يولد وثيقة فيها QR. عند مسح QR بالكاميرا الأصلية يفتح نفس الوثيقة، وتقدر تحفظها PDF من زر الطباعة.</div>
+      <div class="hint">املأ المعلومات، بعدها النظام يولد وثيقة فيها QR. عند مسح QR بالكاميرا الأصلية يفتح نفس الوثيقة.</div>
       <div class="note">نموذج تجريبي غير حكومي - للاستخدام الداخلي فقط</div>
       <form id="docForm">
         <div class="grid">
@@ -106,18 +106,13 @@ document.getElementById('docForm').addEventListener('submit',e=>{e.preventDefaul
 
 function documentPage(data, request) {
   let doc;
-  try {
-    doc = data ? dec(data) : null;
-  } catch {
-    doc = null;
-  }
+  try { doc = data ? dec(data) : null; } catch { doc = null; }
   if (!doc) {
     return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>خطأ</title><style>body{font-family:Arial;background:#f3f4f6;padding:22px}.card{background:#fff;padding:20px;border-radius:16px;max-width:720px;margin:auto}</style></head><body><div class="card"><h2>رابط الوثيقة غير صالح</h2><p>ارجع إلى صفحة الإنشاء وأنشئ وثيقة جديدة.</p><a href="/create">إنشاء وثيقة</a></div></body></html>`;
   }
 
   const docUrl = `${baseUrl(request)}/document?d=${encodeURIComponent(data)}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=230x230&data=${encodeURIComponent(docUrl)}`;
-
   const row = (a,b) => `<tr><td class="label">${a}</td><td>${b || "-"}</td></tr>`;
 
   return `<!DOCTYPE html>
@@ -127,11 +122,10 @@ function documentPage(data, request) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>وثيقة ${doc.doc_id || ""}</title>
 <style>
-@page{size:A4;margin:10mm}*{box-sizing:border-box}body{margin:0;background:#e5e7eb;font-family:Arial,sans-serif;color:#111827}.toolbar{max-width:210mm;margin:12px auto;display:flex;gap:10px;justify-content:center}.toolbar button,.toolbar a{border:0;background:#2563eb;color:#fff;border-radius:12px;padding:12px 16px;text-decoration:none;font-weight:800;cursor:pointer}.toolbar .green{background:#16a34a}.page{width:210mm;min-height:297mm;margin:0 auto 20px;background:#fff;padding:14mm;box-shadow:0 8px 35px rgba(0,0,0,.18);position:relative}.demo{position:absolute;top:7mm;left:7mm;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:999px;padding:7px 12px;font-weight:900;font-size:12px}.head{display:grid;grid-template-columns:1fr 100px 1fr;align-items:center;border-bottom:2px solid #111827;padding-bottom:10px}.h-right{font-weight:800;line-height:1.8}.logo{width:82px;height:82px;border:2px solid #111827;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;margin:auto}.meta{text-align:left;font-size:13px;line-height:1.9}.title{text-align:center;margin:22px 0 8px;font-size:26px;font-weight:900}.subtitle{text-align:center;color:#374151;margin-bottom:18px}.box{border:1.5px solid #d1d5db;border-radius:16px;padding:14px;margin-top:12px}.section-title{background:#991b1b;color:#fff;padding:10px;border-radius:10px 10px 0 0;font-weight:900;text-align:center}table{width:100%;border-collapse:collapse}td{border:1px solid #e5e7eb;padding:10px;font-size:14px}.label{width:33%;background:#f9fafb;font-weight:900;color:#374151}.qr-area{display:grid;grid-template-columns:1fr 180px;gap:18px;align-items:center;margin-top:20px}.qr{width:170px;height:170px;border:1px solid #e5e7eb;padding:8px;background:#fff}.notes{font-size:13px;color:#4b5563;line-height:1.8}.footer{border-top:1.5px solid #111827;margin-top:24px;padding-top:10px;text-align:center;color:#374151;font-size:12px}.link{direction:ltr;word-break:break-all;font-size:10px;color:#6b7280;margin-top:8px}@media(max-width:800px){.page{width:100%;min-height:auto;padding:16px}.head{grid-template-columns:1fr}.meta{text-align:right}.qr-area{grid-template-columns:1fr;text-align:center}.qr{margin:auto}.toolbar{flex-wrap:wrap}}@media print{body{background:#fff}.toolbar{display:none}.page{box-shadow:none;margin:0;width:100%;min-height:auto}.demo{display:block}}
+@page{size:A4;margin:10mm}*{box-sizing:border-box}body{margin:0;background:#e5e7eb;font-family:Arial,sans-serif;color:#111827}.page{width:210mm;min-height:297mm;margin:0 auto 20px;background:#fff;padding:14mm;box-shadow:0 8px 35px rgba(0,0,0,.18);position:relative}.demo{position:absolute;top:7mm;left:7mm;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:999px;padding:7px 12px;font-weight:900;font-size:12px}.head{display:grid;grid-template-columns:1fr 100px 1fr;align-items:center;border-bottom:2px solid #111827;padding-bottom:10px}.h-right{font-weight:800;line-height:1.8}.logo{width:82px;height:82px;border:2px solid #111827;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;margin:auto}.meta{text-align:left;font-size:13px;line-height:1.9}.title{text-align:center;margin:22px 0 8px;font-size:26px;font-weight:900}.subtitle{text-align:center;color:#374151;margin-bottom:18px}.box{border:1.5px solid #d1d5db;border-radius:16px;padding:14px;margin-top:12px}.section-title{background:#991b1b;color:#fff;padding:10px;border-radius:10px 10px 0 0;font-weight:900;text-align:center}table{width:100%;border-collapse:collapse}td{border:1px solid #e5e7eb;padding:10px;font-size:14px}.label{width:33%;background:#f9fafb;font-weight:900;color:#374151}.qr-area{display:grid;grid-template-columns:1fr 180px;gap:18px;align-items:center;margin-top:20px}.qr{width:170px;height:170px;border:1px solid #e5e7eb;padding:8px;background:#fff}.notes{font-size:13px;color:#4b5563;line-height:1.8}.footer{border-top:1.5px solid #111827;margin-top:24px;padding-top:10px;text-align:center;color:#374151;font-size:12px}.link{direction:ltr;word-break:break-all;font-size:10px;color:#6b7280;margin-top:8px}@media(max-width:800px){.page{width:100%;min-height:auto;padding:16px}.head{grid-template-columns:1fr}.meta{text-align:right}.qr-area{grid-template-columns:1fr;text-align:center}.qr{margin:auto}}@media print{body{background:#fff}.page{box-shadow:none;margin:0;width:100%;min-height:auto}.demo{display:block}}
 </style>
 </head>
 <body>
-<div class="toolbar"><button class="green" onclick="window.print()">حفظ / طباعة PDF</button><a href="/create">إنشاء وثيقة جديدة</a></div>
 <div class="page">
   <div class="demo">نموذج تجريبي غير حكومي</div>
   <div class="head">
