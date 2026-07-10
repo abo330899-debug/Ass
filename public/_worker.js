@@ -1,3 +1,6 @@
+const TOKEN_PREFIX = "gAAAAAB";
+const TOKEN_SUFFIX = "==|local_company";
+
 const demoDocuments = {
   "DOC-1001": {
     doc_id: "DOC-1001",
@@ -50,7 +53,7 @@ function baseUrl(request) {
   return `${url.protocol}//${url.host}`;
 }
 
-function enc(obj) {
+function toBase64Url(obj) {
   const jsonText = JSON.stringify(obj);
   const bytes = new TextEncoder().encode(jsonText);
   let bin = "";
@@ -58,12 +61,25 @@ function enc(obj) {
   return btoa(bin).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
-function dec(data) {
-  const pad = "=".repeat((4 - (data.length % 4)) % 4);
-  const b64 = data.replaceAll("-", "+").replaceAll("_", "/") + pad;
+function fromBase64Url(payload) {
+  const pad = "=".repeat((4 - (payload.length % 4)) % 4);
+  const b64 = payload.replaceAll("-", "+").replaceAll("_", "/") + pad;
   const bin = atob(b64);
   const bytes = Uint8Array.from(bin, ch => ch.charCodeAt(0));
   return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+function enc(obj) {
+  return TOKEN_PREFIX + toBase64Url(obj) + TOKEN_SUFFIX;
+}
+
+function dec(data) {
+  let token = String(data || "").trim();
+  if (!token) throw new Error("EMPTY_TOKEN");
+  if (token.includes("|local_company")) token = token.split("|local_company")[0];
+  if (token.startsWith(TOKEN_PREFIX)) token = token.slice(TOKEN_PREFIX.length);
+  token = token.replace(/=+$/g, "");
+  return fromBase64Url(token);
 }
 
 function safe(v) {
@@ -121,7 +137,7 @@ function createPage() {
 <body>
 <div class="wrap"><div class="card">
 <h1>إنشاء وثيقة من قبل الشركة</h1>
-<div class="hint">املأ المعلومات، بعدها النظام يولد وثيقة A4 فيها QR. عند مسح QR بالكاميرا الأصلية يفتح نفس الوثيقة بنفس الشكل.</div>
+<div class="hint">املأ المعلومات، بعدها النظام يولد وثيقة A4 فيها QR. رمز الرابط يظهر بشكل: <b>gAAAAAB...==|local_company</b></div>
 <div class="note">نموذج تجريبي داخلي غير حكومي</div>
 <form id="docForm"><div class="grid">
 <div class="field"><label>رقم الوثيقة</label><input name="doc_id" value="DOC-${Date.now().toString().slice(-6)}" required></div>
@@ -145,10 +161,12 @@ function createPage() {
 <div class="field"><label>كمية المنتج</label><input name="item_quantity" value="100 كرتون"></div>
 <div class="field"><label>الحالة</label><select name="status"><option>VALID</option><option>PENDING</option><option>COMPLETED</option></select></div>
 <div class="field full"><label>ملاحظة داخلية</label><textarea name="note">نموذج تجريبي داخلي غير حكومي</textarea></div>
-</div><button class="btn" type="submit">إنشاء الوثيقة مع QR</button><button class="btn btn2" type="button" onclick="location.href='/document?d=${enc(demoDocuments['DOC-1001'])}'">فتح مثال جاهز</button></form>
+</div><button class="btn" type="submit">إنشاء الوثيقة مع QR</button><button class="btn btn2" type="button" onclick="location.href='/document?d=${encodeURIComponent(enc(demoDocuments['DOC-1001']))}'">فتح مثال جاهز</button></form>
 </div></div>
 <script>
-function encClient(obj){const json=JSON.stringify(obj);const bytes=new TextEncoder().encode(json);let bin='';for(const b of bytes)bin+=String.fromCharCode(b);return btoa(bin).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');}
+const TOKEN_PREFIX='gAAAAAB';
+const TOKEN_SUFFIX='==|local_company';
+function encClient(obj){const json=JSON.stringify(obj);const bytes=new TextEncoder().encode(json);let bin='';for(const b of bytes)bin+=String.fromCharCode(b);const payload=btoa(bin).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');return TOKEN_PREFIX+payload+TOKEN_SUFFIX;}
 document.getElementById('docForm').addEventListener('submit',e=>{e.preventDefault();const fd=new FormData(e.target);const doc=Object.fromEntries(fd.entries());doc.numberOfVersion=1;doc.generated_at=new Date().toISOString();const d=encClient(doc);location.href='/document?d='+encodeURIComponent(d);});
 </script>
 </body></html>`;
@@ -163,7 +181,8 @@ function documentPage(data, request) {
   const dt = dateTimeParts(doc);
   doc.date_str = doc.date_str || dt.date;
   doc.time_str = doc.time_str || dt.time;
-  const docUrl = `${baseUrl(request)}/document?d=${encodeURIComponent(data)}`;
+  const cleanToken = enc(raw);
+  const docUrl = `${baseUrl(request)}/document?d=${encodeURIComponent(cleanToken)}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(docUrl)}`;
 
   return `<!DOCTYPE html>
@@ -220,7 +239,7 @@ function documentPage(data, request) {
       <p>يمكنك حفظ صورة الوثيقة في الهاتف لاستخدامها عند الحاجة.</p>
       <p class="light-note">لمزيد من المعلومات عن الخدمات الحكومية الإلكترونية يمكن زيارة:</p>
       <a href="https://ur.gov.iq" target="_blank" rel="noopener noreferrer"><b>https://ur.gov.iq</b></a>
-      <div class="doc-url">${safe(docUrl)}</div>
+      <div class="doc-url">${safe(cleanToken)}</div>
     </div>
   </div>
   <footer class="doc-footer">
