@@ -1,5 +1,6 @@
 const TOKEN_PREFIX = "gAAAAAB";
 const TOKEN_SUFFIX = "==|local_company";
+const FALLBACK_SECRET = "local-company-demo-secret-change-this-in-cloudflare";
 
 const demoDocuments = {
   "DOC-1001": {
@@ -53,33 +54,54 @@ function baseUrl(request) {
   return `${url.protocol}//${url.host}`;
 }
 
-function toBase64Url(obj) {
-  const jsonText = JSON.stringify(obj);
-  const bytes = new TextEncoder().encode(jsonText);
+function bytesToBase64Url(bytes) {
   let bin = "";
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
-function fromBase64Url(payload) {
-  const pad = "=".repeat((4 - (payload.length % 4)) % 4);
-  const b64 = payload.replaceAll("-", "+").replaceAll("_", "/") + pad;
+function base64UrlToBytes(text) {
+  const pad = "=".repeat((4 - (text.length % 4)) % 4);
+  const b64 = text.replaceAll("-", "+").replaceAll("_", "/") + pad;
   const bin = atob(b64);
-  const bytes = Uint8Array.from(bin, ch => ch.charCodeAt(0));
-  return JSON.parse(new TextDecoder().decode(bytes));
+  return Uint8Array.from(bin, ch => ch.charCodeAt(0));
 }
 
-function enc(obj) {
-  return TOKEN_PREFIX + toBase64Url(obj) + TOKEN_SUFFIX;
+async function getAesKey(env) {
+  const secret = String((env && env.LOCAL_COMPANY_SECRET) || FALLBACK_SECRET);
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(secret));
+  return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
 
-function dec(data) {
+async function encryptDoc(obj, env) {
+  const key = await getAesKey(env);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const plain = new TextEncoder().encode(JSON.stringify(obj));
+  const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plain));
+  const packed = new Uint8Array(1 + iv.length + cipher.length);
+  packed[0] = 1;
+  packed.set(iv, 1);
+  packed.set(cipher, 13);
+  return TOKEN_PREFIX + bytesToBase64Url(packed) + TOKEN_SUFFIX;
+}
+
+async function decryptDoc(data, env) {
   let token = String(data || "").trim();
   if (!token) throw new Error("EMPTY_TOKEN");
   if (token.includes("|local_company")) token = token.split("|local_company")[0];
   if (token.startsWith(TOKEN_PREFIX)) token = token.slice(TOKEN_PREFIX.length);
   token = token.replace(/=+$/g, "");
-  return fromBase64Url(token);
+  const packed = base64UrlToBytes(token);
+
+  if (packed[0] === 1 && packed.length > 30) {
+    const key = await getAesKey(env);
+    const iv = packed.slice(1, 13);
+    const cipher = packed.slice(13);
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, cipher);
+    return JSON.parse(new TextDecoder().decode(plain));
+  }
+
+  return JSON.parse(new TextDecoder().decode(packed));
 }
 
 function safe(v) {
@@ -90,11 +112,7 @@ function dateTimeParts(doc) {
   const src = doc.generated_at || new Date().toISOString();
   const date = doc.created_at || src.slice(0, 10);
   let time = "";
-  try {
-    time = new Date(src).toLocaleTimeString("ar-IQ", { hour: "2-digit", minute: "2-digit" });
-  } catch {
-    time = "";
-  }
+  try { time = new Date(src).toLocaleTimeString("ar-IQ", { hour: "2-digit", minute: "2-digit" }); } catch {}
   return { date, time };
 }
 
@@ -137,7 +155,7 @@ function createPage() {
 <body>
 <div class="wrap"><div class="card">
 <h1>إنشاء وثيقة من قبل الشركة</h1>
-<div class="hint">املأ المعلومات، بعدها النظام يولد وثيقة A4 فيها QR. رمز الرابط يظهر بشكل: <b>gAAAAAB...==|local_company</b></div>
+<div class="hint">البيانات تُشفّر داخل السيرفر بتشفير AES-GCM، والرابط يطلع بهذا الشكل: <b>gAAAAAB...==|local_company</b></div>
 <div class="note">نموذج تجريبي داخلي غير حكومي</div>
 <form id="docForm"><div class="grid">
 <div class="field"><label>رقم الوثيقة</label><input name="doc_id" value="DOC-${Date.now().toString().slice(-6)}" required></div>
@@ -161,27 +179,25 @@ function createPage() {
 <div class="field"><label>كمية المنتج</label><input name="item_quantity" value="100 كرتون"></div>
 <div class="field"><label>الحالة</label><select name="status"><option>VALID</option><option>PENDING</option><option>COMPLETED</option></select></div>
 <div class="field full"><label>ملاحظة داخلية</label><textarea name="note">نموذج تجريبي داخلي غير حكومي</textarea></div>
-</div><button class="btn" type="submit">إنشاء الوثيقة مع QR</button><button class="btn btn2" type="button" onclick="location.href='/document?d=${encodeURIComponent(enc(demoDocuments['DOC-1001']))}'">فتح مثال جاهز</button></form>
+</div><button class="btn" type="submit">إنشاء الوثيقة مع QR مشفّر</button><button class="btn btn2" type="button" onclick="location.href='/qrpubliclink/DOC-1001'">فتح مثال جاهز</button></form>
 </div></div>
 <script>
-const TOKEN_PREFIX='gAAAAAB';
-const TOKEN_SUFFIX='==|local_company';
-function encClient(obj){const json=JSON.stringify(obj);const bytes=new TextEncoder().encode(json);let bin='';for(const b of bytes)bin+=String.fromCharCode(b);const payload=btoa(bin).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');return TOKEN_PREFIX+payload+TOKEN_SUFFIX;}
-document.getElementById('docForm').addEventListener('submit',e=>{e.preventDefault();const fd=new FormData(e.target);const doc=Object.fromEntries(fd.entries());doc.numberOfVersion=1;doc.generated_at=new Date().toISOString();const d=encClient(doc);location.href='/document?d='+encodeURIComponent(d);});
+document.getElementById('docForm').addEventListener('submit',async e=>{e.preventDefault();const fd=new FormData(e.target);const doc=Object.fromEntries(fd.entries());doc.numberOfVersion=1;doc.generated_at=new Date().toISOString();const res=await fetch('/api/create-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(doc)});const data=await res.json();if(!data.success){alert('فشل إنشاء التشفير');return;}location.href=data.url;});
 </script>
 </body></html>`;
 }
 
-function documentPage(data, request) {
+async function documentPage(data, request, env) {
   let raw;
-  try { raw = data ? dec(data) : null; } catch { raw = null; }
-  if (!raw) return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>خطأ</title><style>body{font-family:Arial;background:#f3f4f6;padding:22px}.card{background:#fff;padding:20px;border-radius:16px;max-width:720px;margin:auto}</style></head><body><div class="card"><h2>رابط الوثيقة غير صالح</h2><p>ارجع إلى صفحة الإنشاء وأنشئ وثيقة جديدة.</p><a href="/create">إنشاء وثيقة</a></div></body></html>`;
+  try { raw = data ? await decryptDoc(data, env) : null; } catch { raw = null; }
+  if (!raw) return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>خطأ</title><style>body{font-family:Arial;background:#f3f4f6;padding:22px}.card{background:#fff;padding:20px;border-radius:16px;max-width:720px;margin:auto}</style></head><body><div class="card"><h2>رابط الوثيقة غير صالح أو مفتاح التشفير مختلف</h2><p>أنشئ وثيقة جديدة من نفس السيرفر.</p><a href="/create">إنشاء وثيقة</a></div></body></html>`;
 
   const doc = normalizeDoc(raw);
   const dt = dateTimeParts(doc);
   doc.date_str = doc.date_str || dt.date;
   doc.time_str = doc.time_str || dt.time;
-  const cleanToken = enc(raw);
+  const tokenLooksEncrypted = String(data || "").startsWith(TOKEN_PREFIX) && String(data || "").includes("|local_company");
+  const cleanToken = tokenLooksEncrypted ? String(data).trim() : await encryptDoc(raw, env);
   const docUrl = `${baseUrl(request)}/document?d=${encodeURIComponent(cleanToken)}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(docUrl)}`;
 
@@ -192,7 +208,7 @@ function documentPage(data, request) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>وثيقة ${safe(doc.doc_id)}</title>
 <style>
-@page{size:A4;margin:0}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}html,body{margin:0;padding:0;background:#e9ecef;font-family:Arial,sans-serif;color:#111}.a4-page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;padding:10mm 12mm 8mm;position:relative;box-shadow:0 4px 24px rgba(0,0,0,.18);overflow:hidden}.demo-watermark{position:absolute;top:6mm;left:8mm;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:999px;padding:5px 10px;font-weight:900;font-size:10px;z-index:5}.header-clean{display:grid;grid-template-columns:1fr 95px 1fr;align-items:start;gap:12px;min-height:30mm}.header-right{font-size:10.5pt;line-height:1.65;font-weight:500;text-align:right;padding-top:2mm}.header-center{text-align:center}.logo-ring{width:24mm;height:24mm;border:1.6px solid #444;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:auto;font-size:9pt;font-weight:800;color:#333;background:#fff}.center-logo{max-width:20mm;max-height:20mm}.header-left{font-size:9pt;line-height:1.55;padding-top:2mm}.meta-line{display:grid;grid-template-columns:30mm 1fr;gap:4mm;margin-bottom:2mm}.meta-label{font-weight:700;color:#333}.meta-value{border-bottom:1px dotted #777;min-height:5mm;text-align:center}.divider{border:0;border-top:1.5px solid #cfcfcf;margin:1mm 0 4mm}.doc-title{text-align:center;font-size:19pt;font-weight:500;margin:0 0 5mm}.subject-row{display:flex;align-items:center;gap:6mm;margin:0 0 5mm;font-size:11pt}.subject-row strong{white-space:nowrap}.subject-box{border:1px solid #d6d6d6;border-radius:9px;padding:3mm 6mm;flex:1;min-height:10mm;background:#fff;text-align:center;font-weight:600}.info-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9.4pt}.info-table .col-right{width:35%}.info-table .col-left{width:65%}.info-table th{background:#a40000;color:#fff;border:1px solid #8a0000;padding:2.5mm;font-size:10pt;font-weight:800;text-align:center}.info-table td{border:1px solid #e3e3e3;padding:2.2mm 3mm;min-height:8mm;vertical-align:middle}.info-table td:first-child{font-weight:600;background:#fafafa}.qr-wrap{display:flex;justify-content:center;align-items:center;margin:6mm auto 3mm;width:42mm;height:42mm;border:1px solid #dadada;background:#fff}.barcode-box{width:38mm;height:38mm;display:flex;align-items:center;justify-content:center}.barcode-box img{width:38mm;height:38mm;display:block}.notes{text-align:center;font-size:8.8pt;line-height:1.55;color:#333;margin-top:1mm}.notes p{margin:1mm 0}.light-note{color:#777}.notes a{color:#1d66d1;text-decoration:none}.doc-footer{position:absolute;left:12mm;right:12mm;bottom:6mm;border-top:1.5px solid #d8d8d8;padding-top:3mm;display:grid;grid-template-columns:28mm 1fr 48mm;align-items:center;gap:8mm;font-size:7.8pt;color:#333}.bottom-right-logo{width:18mm;max-height:20mm;object-fit:contain}.footer-center{text-align:center;line-height:1.6}.footer-right{text-align:left;direction:ltr;line-height:1.55}.doc-url{direction:ltr;word-break:break-all;font-size:6.6pt;color:#999;margin-top:1mm}.content{padding-bottom:29mm}@media(max-width:800px){body{background:#fff}.a4-page{width:100%;min-height:auto;box-shadow:none;padding:8mm}.header-clean{grid-template-columns:1fr}.header-left{text-align:right}.meta-line{grid-template-columns:1fr 1fr}.doc-footer{position:static;margin-top:8mm;grid-template-columns:1fr;text-align:center}.footer-right{text-align:center}.content{padding-bottom:0}}@media print{body{background:#fff}.a4-page{box-shadow:none;margin:0;width:210mm;min-height:297mm}}
+@page{size:A4;margin:0}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}html,body{margin:0;padding:0;background:#e9ecef;font-family:Arial,sans-serif;color:#111}.a4-page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;padding:10mm 12mm 8mm;position:relative;box-shadow:0 4px 24px rgba(0,0,0,.18);overflow:hidden}.demo-watermark{position:absolute;top:6mm;left:8mm;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:999px;padding:5px 10px;font-weight:900;font-size:10px;z-index:5}.header-clean{display:grid;grid-template-columns:1fr 95px 1fr;align-items:start;gap:12px;min-height:30mm}.header-right{font-size:10.5pt;line-height:1.65;font-weight:500;text-align:right;padding-top:2mm}.header-center{text-align:center}.logo-ring{width:24mm;height:24mm;border:1.6px solid #444;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:auto;font-size:9pt;font-weight:800;color:#333;background:#fff}.header-left{font-size:9pt;line-height:1.55;padding-top:2mm}.meta-line{display:grid;grid-template-columns:30mm 1fr;gap:4mm;margin-bottom:2mm}.meta-label{font-weight:700;color:#333}.meta-value{border-bottom:1px dotted #777;min-height:5mm;text-align:center}.divider{border:0;border-top:1.5px solid #cfcfcf;margin:1mm 0 4mm}.doc-title{text-align:center;font-size:19pt;font-weight:500;margin:0 0 5mm}.subject-row{display:flex;align-items:center;gap:6mm;margin:0 0 5mm;font-size:11pt}.subject-row strong{white-space:nowrap}.subject-box{border:1px solid #d6d6d6;border-radius:9px;padding:3mm 6mm;flex:1;min-height:10mm;background:#fff;text-align:center;font-weight:600}.info-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9.4pt}.info-table .col-right{width:35%}.info-table .col-left{width:65%}.info-table th{background:#a40000;color:#fff;border:1px solid #8a0000;padding:2.5mm;font-size:10pt;font-weight:800;text-align:center}.info-table td{border:1px solid #e3e3e3;padding:2.2mm 3mm;min-height:8mm;vertical-align:middle}.info-table td:first-child{font-weight:600;background:#fafafa}.qr-wrap{display:flex;justify-content:center;align-items:center;margin:6mm auto 3mm;width:42mm;height:42mm;border:1px solid #dadada;background:#fff}.barcode-box{width:38mm;height:38mm;display:flex;align-items:center;justify-content:center}.barcode-box img{width:38mm;height:38mm;display:block}.notes{text-align:center;font-size:8.8pt;line-height:1.55;color:#333;margin-top:1mm}.notes p{margin:1mm 0}.light-note{color:#777}.notes a{color:#1d66d1;text-decoration:none}.doc-footer{position:absolute;left:12mm;right:12mm;bottom:6mm;border-top:1.5px solid #d8d8d8;padding-top:3mm;display:grid;grid-template-columns:28mm 1fr 48mm;align-items:center;gap:8mm;font-size:7.8pt;color:#333}.footer-center{text-align:center;line-height:1.6}.footer-right{text-align:left;direction:ltr;line-height:1.55}.doc-url{direction:ltr;word-break:break-all;font-size:6.6pt;color:#999;margin-top:1mm}.content{padding-bottom:29mm}@media(max-width:800px){body{background:#fff}.a4-page{width:100%;min-height:auto;box-shadow:none;padding:8mm}.header-clean{grid-template-columns:1fr}.header-left{text-align:right}.meta-line{grid-template-columns:1fr 1fr}.doc-footer{position:static;margin-top:8mm;grid-template-columns:1fr;text-align:center}.footer-right{text-align:center}.content{padding-bottom:0}}@media print{body{background:#fff}.a4-page{box-shadow:none;margin:0;width:210mm;min-height:297mm}}
 </style>
 </head>
 <body>
@@ -243,7 +259,7 @@ function documentPage(data, request) {
     </div>
   </div>
   <footer class="doc-footer">
-    <div class="bottom-right-logo logo-ring">شعار</div><div></div>
+    <div class="logo-ring">شعار</div><div></div>
     <div class="footer-center"><div>مكتب رئيس الوزراء / المركز الوطني للتحول الرقمي</div><div>بغداد – كرادة مريم</div><div>المركز الوطني للتحول الرقمي @2025</div></div>
     <div class="footer-right"><div>Prime Minister's Office</div><div>National Center for Digital Transformation</div><div>Tel: 5599</div></div>
   </footer>
@@ -252,33 +268,46 @@ function documentPage(data, request) {
 </html>`;
 }
 
-function findDocumentPage(code, request) {
+async function findDocumentPage(code, request, env) {
   const doc = demoDocuments[code];
   if (!doc) return null;
-  return documentPage(enc(doc), request);
+  const token = await encryptDoc(doc, env);
+  return documentPage(token, request, env);
+}
+
+function docPayload(doc) {
+  return { success: true, data: { info: { fullName: doc.owner_name || doc.driver_name, orgName: doc.company_name_project || doc.company_name, orgPathInfo: doc.governorate_name || doc.governorate }, numberOfVersion: doc.numberOfVersion || 1, showIn: true, document: doc } };
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const url = new URL(request.url);
     const pathname = url.pathname;
     if (request.method === "OPTIONS") return json({ ok: true });
     if (pathname === "/") return Response.redirect(`${baseUrl(request)}/create`, 302);
     if (pathname === "/create") return html(createPage());
-    if (pathname === "/document") return html(documentPage(url.searchParams.get("d"), request));
+    if (pathname === "/api/create-token" && request.method === "POST") {
+      let doc = {};
+      try { doc = await request.json(); } catch {}
+      doc.numberOfVersion = doc.numberOfVersion || 1;
+      doc.generated_at = doc.generated_at || new Date().toISOString();
+      const token = await encryptDoc(doc, env);
+      return json({ success: true, token, url: `${baseUrl(request)}/document?d=${encodeURIComponent(token)}` });
+    }
+    if (pathname === "/document") return html(await documentPage(url.searchParams.get("d"), request, env));
     if (pathname === "/qrpubliclink") {
       const code = url.searchParams.get("code");
       if (code) {
-        const page = findDocumentPage(code, request);
+        const page = await findDocumentPage(code, request, env);
         if (page) return html(page);
       }
-      return html(documentPage(null, request), 400);
+      return html(await documentPage(null, request, env), 400);
     }
     if (pathname.startsWith("/qrpubliclink/")) {
       const code = decodeURIComponent(pathname.replace("/qrpubliclink/", ""));
-      const page = findDocumentPage(code, request);
+      const page = await findDocumentPage(code, request, env);
       if (page) return html(page);
-      return html(documentPage(null, request), 404);
+      return html(await documentPage(null, request, env), 404);
     }
     if (pathname.startsWith("/api/verify/")) {
       const code = decodeURIComponent(pathname.replace("/api/verify/", ""));
@@ -290,15 +319,24 @@ export default {
       let body = {};
       try { body = await request.json(); } catch {}
       const code = String(body.QRcode || body.code || "").trim();
+      if (code.startsWith(TOKEN_PREFIX)) {
+        try {
+          const doc = normalizeDoc(await decryptDoc(code, env));
+          return json(docPayload(doc));
+        } catch {
+          return json({ success: false, error: "INVALID_ENCRYPTED_TOKEN" }, 400);
+        }
+      }
       const doc = demoDocuments[code];
       if (!doc) return json({ success: false, error: "DOCUMENT_NOT_FOUND", message: "لم يتم العثور على الوثيقة" }, 404);
-      return json({ success: true, data: { info: { fullName: doc.owner_name || doc.driver_name, orgName: doc.company_name_project || doc.company_name, orgPathInfo: doc.governorate_name || doc.governorate }, numberOfVersion: doc.numberOfVersion, showIn: true, document: doc } });
+      return json(docPayload(doc));
     }
     if (pathname.startsWith("/api/make-qr/")) {
       const code = decodeURIComponent(pathname.replace("/api/make-qr/", ""));
       const doc = demoDocuments[code];
       if (!doc) return json({ success: false, error: "DOCUMENT_NOT_FOUND" }, 404);
-      const qrLink = `${baseUrl(request)}/qrpubliclink/${encodeURIComponent(code)}`;
+      const token = await encryptDoc(doc, env);
+      const qrLink = `${baseUrl(request)}/document?d=${encodeURIComponent(token)}`;
       const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(qrLink)}`;
       return Response.redirect(qrImageUrl, 302);
     }
