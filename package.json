@@ -1,14 +1,14 @@
 {
-  "name": "qrpublic-server",
+  "name": "qrpublic-worker",
   "version": "1.0.0",
-  "description": "Private QR Public test server. Non-government demo.",
+  "description": "Private QR Public test server for Cloudflare Workers. Non-government demo.",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "start": "wrangler dev"
   },
-  "dependencies": {
-    "express": "^4.18.3",
-    "qrcode": "^1.5.4"
+  "devDependencies": {
+    "wrangler": "^3.90.0"
   }
 }
