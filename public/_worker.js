@@ -1,27 +1,1757 @@
-const TOKEN_PREFIX="gAAAAAB";
-const TOKEN_SUFFIX="==|local_company";
-const enc=new TextEncoder(),dec=new TextDecoder();
-const ORG={ar:"مجموعة عبد الستار للخدمات اللوجستية",en:"Abdulstar Logistics Group",dept:"قسم وثائق النقل الداخلية",addr:"العراق - دهوك",phone:"0750 000 0000",mark:"ALG",wm:"وثيقة شركة داخلية"};
-const companies=[
-{id:"C-1001",name:"شركة الغدير للنقل والتجارة",owner:"قسم الشركات",governorate:"دهوك",approval:"إدارة مجموعة عبد الستار",license:"ALG-1001",brand:"ALGHADIR"},
-{id:"C-1002",name:"شركة ستار باك التجارية",owner:"قسم التوريد",governorate:"أربيل",approval:"إدارة مجموعة عبد الستار",license:"ALG-1002",brand:"STAR PACK"},
-{id:"C-1003",name:"شركة النعيم للخدمات",owner:"قسم العمليات",governorate:"دهوك",approval:"إدارة مجموعة عبد الستار",license:"ALG-1003",brand:"ALNAEEM"}
+const TOKEN_PREFIX = "gAAAAAB";
+const TOKEN_SUFFIX = "==|local_company";
+const enc = new TextEncoder(), dec = new TextDecoder();
+
+const ORG = {
+  ar: "مجموعة عبد الستار للخدمات اللوجستية",
+  en: "Abdulstar Logistics Group",
+  dept: "قسم وثائق النقل الداخلية",
+  addr: "العراق - دهوك",
+  phone: "0750 000 0000",
+  mark: "ALG"
+};
+
+const companies = [
+  {
+    id: "C-1001",
+    name: "شركة الغدير للنقل والتجارة",
+    owner: "قسم الشركات",
+    governorate: "دهوك",
+    approval: "إدارة مجموعة عبد الستار",
+    license: "ALG-1001",
+    brand: "ALGHADIR"
+  },
+  {
+    id: "C-1002",
+    name: "شركة ستار باك التجارية",
+    owner: "قسم التوريد",
+    governorate: "أربيل",
+    approval: "إدارة مجموعة عبد الستار",
+    license: "ALG-1002",
+    brand: "STAR PACK"
+  },
+  {
+    id: "C-1003",
+    name: "شركة النعيم للخدمات",
+    owner: "قسم العمليات",
+    governorate: "دهوك",
+    approval: "إدارة مجموعة عبد الستار",
+    license: "ALG-1003",
+    brand: "ALNAEEM"
+  }
 ];
-const demo={"DOC-1001":{doc_id:"DOC-1001",created_at:"2026-07-10",checkpoint_name_control:"بوابة الشركة الرئيسية",driver_name:"جلال مهدي",vehicle_number:"42040 دهوك",registration_governorate:"دهوك",cargo_typedetails:"مواد تجارية",weight_quantity:"100 كرتون",destination_governorate:"أربيل",governorate_name:"دهوك",company_name_project:"شركة الغدير للنقل والتجارة",granting_license_approval:"إدارة مجموعة عبد الستار",license_approval_number:"ALG-1001",license_approval_date:"2026-07-10",license_text_specialization:"موافقة نقل داخلية للشركة",brand:"ALGHADIR",item_name:"مواد تجارية",item_quantity:"100 كرتون",numberOfVersion:1,generated_at:"2026-07-10T18:47:09.090Z",note:"وثيقة شركة داخلية"}};
-const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-const html=(s,st=200)=>new Response(s,{status:st,headers:{"content-type":"text/html; charset=utf-8"}});
-const json=(d,st=200)=>new Response(JSON.stringify(d,null,2),{status:st,headers:{"content-type":"application/json; charset=utf-8","access-control-allow-origin":"*","access-control-allow-methods":"GET,POST,OPTIONS","access-control-allow-headers":"content-type"}});
-const base=req=>{const u=new URL(req.url);return `${u.protocol}//${u.host}`};
-function b64u(t){let b="";for(const x of enc.encode(t))b+=String.fromCharCode(x);return btoa(b).replaceAll("+","-").replaceAll("/","_").replaceAll("=","")}
-function ub64(t){const p="=".repeat((4-t.length%4)%4);const b=atob(t.replaceAll("-","+").replaceAll("_","/")+p);return dec.decode(Uint8Array.from(b,c=>c.charCodeAt(0)))}
-function token(id){return TOKEN_PREFIX+b64u(JSON.stringify({id:String(id)}))+TOKEN_SUFFIX}
-function idFrom(v){let r=String(v||"").trim();if(r.startsWith("http")){const u=new URL(r);r=u.searchParams.get("d")||r}if(r.includes("|local_company"))r=r.split("|local_company")[0];if(r.startsWith(TOKEN_PREFIX)){try{return JSON.parse(ub64(r.slice(TOKEN_PREFIX.length))).id}catch{}}return r}
-function norm(d){return{doc_id:d.doc_id||`DOC-${Date.now().toString().slice(-6)}`,created_at:d.created_at||new Date().toISOString().slice(0,10),subject:"وثيقة نقل داخلية للشركة",checkpoint_name_control:d.checkpoint_name_control||"-",driver_name:d.driver_name||"-",vehicle_number:d.vehicle_number||"-",registration_governorate:d.registration_governorate||"-",cargo_typedetails:d.cargo_typedetails||"-",weight_quantity:d.weight_quantity||"-",destination_governorate:d.destination_governorate||"-",governorate_name:d.governorate_name||"-",company_name_project:d.company_name_project||"-",granting_license_approval:d.granting_license_approval||ORG.dept,license_approval_number:d.license_approval_number||"-",license_approval_date:d.license_approval_date||d.created_at||new Date().toISOString().slice(0,10),license_text_specialization:d.license_text_specialization||"موافقة نقل داخلية للشركة",brand:d.brand||"-",item_name:d.item_name||"-",item_quantity:d.item_quantity||"-",numberOfVersion:Number(d.numberOfVersion||1),generated_at:d.generated_at||new Date().toISOString(),note:d.note||"وثيقة شركة داخلية"}}
-async function load(id,env){const k=idFrom(id);if(env&&env.DOCS){const s=await env.DOCS.get(k);if(s)return norm(JSON.parse(s))}return demo[k]?norm(demo[k]):null}
-const appCss=`*{box-sizing:border-box}body{margin:0;background:#eef1f5;color:#111;font-family:Arial,sans-serif}.top{background:#fff;border-bottom:1px solid #d9dee7;box-shadow:0 2px 14px #0001}.topin{max-width:1180px;margin:auto;min-height:70px;padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:14px}.brand{display:flex;gap:12px;align-items:center;font-weight:900}.seal{width:46px;height:46px;border:2px solid #12315d;border-radius:50%;display:grid;place-items:center;color:#12315d}.nav{display:flex;gap:8px;flex-wrap:wrap}.nav a,.tag{text-decoration:none;border-radius:999px;padding:8px 12px;font-weight:800;font-size:13px}.nav a{background:#f3f5f8;color:#222}.tag{background:#fff7df;color:#7a5600;border:1px solid #e7c76c}.main{max-width:1180px;margin:auto;padding:24px 16px}.panel{background:#fff;border:1px solid #e1e5ec;border-radius:20px;box-shadow:0 14px 36px #0001;overflow:hidden}.head{padding:22px 24px;border-bottom:1px solid #e9edf3}.head h1{margin:0 0 8px}.head p{margin:0;color:#666;line-height:1.7}.layout{padding:18px;display:grid;grid-template-columns:360px 1fr;gap:18px}.side{background:#fafbfc;border:1px solid #e5e9ef;border-radius:16px;padding:14px}.input,textarea{width:100%;border:1px solid #d3d9e3;border-radius:12px;padding:12px 13px;font-size:15px}.card{background:#fff;border:1px solid #e1e5ec;border-radius:14px;padding:12px;margin-top:10px;cursor:pointer}.card.active,.card:hover{border-color:#12315d;box-shadow:0 0 0 3px #12315d18}.meta{font-size:12px;color:#666;line-height:1.6}.sel{background:#f7f0dc;border:1px solid #e5c66d;border-radius:14px;padding:12px;margin-bottom:14px;font-weight:900;color:#573f00}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:flex;flex-direction:column;gap:7px}.full{grid-column:1/-1}label{font-weight:900;font-size:14px}.actions{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap}.btn{border:0;border-radius:12px;padding:13px 18px;background:#12315d;color:#fff;font-weight:900}.gold{background:#b38a22}.ghost{background:#f1f3f6;color:#111}.foot{text-align:center;padding:18px;border-top:1px solid #dde3ec;background:#fff;color:#777}@media(max-width:900px){.layout,.grid{grid-template-columns:1fr}.topin{align-items:flex-start;flex-direction:column}.btn{width:100%}}`;
-function nav(){return `<div class="top"><div class="topin"><div class="brand"><div class="seal">${ORG.mark}</div><div>${ORG.ar}<br><small style="color:#666">${ORG.dept}</small></div></div><div class="nav"><a href="/company-owner">أصحاب الشركات</a><a href="/ReadQrWithUR">قراءة QR</a><span class="tag">وثائق شركة</span></div></div></div>`}
-function form(){const today=new Date().toISOString().slice(0,10),docId=`DOC-${Date.now().toString().slice(-6)}`;const cs=companies.map((c,i)=>`<div class="card ${i==0?'active':''}" data-c='${JSON.stringify(c).replaceAll("'","&#39;")}'><b>${esc(c.name)}</b><div class="meta">المسؤول: ${esc(c.owner)}<br>المحافظة: ${esc(c.governorate)} - رقم الاعتماد: ${esc(c.license)}</div></div>`).join("");const f=[["doc_id","رقم الوثيقة",docId,"text"],["created_at","تاريخ إنشاء الوثيقة",today,"date"],["company_name_project","اسم الشركة / المشروع",companies[0].name,"text"],["governorate_name","اسم المحافظة",companies[0].governorate,"text"],["granting_license_approval","الجهة المانحة للاعتماد",companies[0].approval,"text"],["license_approval_number","رقم الاعتماد",companies[0].license,"text"],["license_approval_date","تاريخ الاعتماد",today,"date"],["brand","العلامة التجارية",companies[0].brand,"text"],["checkpoint_name_control","نقطة الدخول / التسليم","بوابة الشركة الرئيسية","text"],["driver_name","اسم السائق","جلال مهدي","text"],["vehicle_number","رقم العجلة","42040 دهوك","text"],["registration_governorate","محافظة تسجيل العجلة","دهوك","text"],["cargo_typedetails","نوع / تفاصيل الحمولة","مواد تجارية","text"],["weight_quantity","الوزن / الكمية","100 كرتون","text"],["destination_governorate","الوجهة النهائية / المحافظة","أربيل","text"],["license_text_specialization","منطوق الاعتماد / الاختصاص","موافقة نقل داخلية للشركة","text"],["item_name","اسم المادة / المنتج","مواد تجارية","text"],["item_quantity","كمية المنتج","100 كرتون","text"]].map(x=>`<div class="field"><label>${x[1]}</label><input class="input" name="${x[0]}" type="${x[3]}" value="${esc(x[2])}"></div>`).join("");return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>أصحاب الشركات</title><style>${appCss}</style></head><body>${nav()}<main class="main"><section class="panel"><div class="head"><h1>بوابة أصحاب الشركات</h1><p>نفس أماكن الكتابات المهمة: رأس الصفحة، بيانات الوثيقة، الموضوع، الجدول، QR، الختم والتوقيع، مع هوامش A4 مرتبة.</p></div><div class="layout"><aside class="side"><input id="q" class="input" placeholder="بحث عن شركة أو محافظة"><div id="list">${cs}</div></aside><section><div class="sel" id="sel">الشركة المحددة: ${companies[0].name}</div><form id="frm"><div class="grid">${f}<div class="field full"><label>ملاحظة</label><textarea name="note" rows="3">وثيقة شركة داخلية</textarea></div></div><div class="actions"><button class="btn">إنشاء PDF</button><button class="btn gold" type="button" onclick="location.href='/pdf?d=DOC-1001'">PDF مثال</button><button class="btn ghost" type="button" onclick="location.href='/ReadQrWithUR'">قراءة QR</button></div></form></section></div></section></main><div class="foot">${ORG.en}</div><script>const cards=[...document.querySelectorAll('.card')],frm=document.getElementById('frm');function set(c,e){cards.forEach(x=>x.classList.remove('active'));e&&e.classList.add('active');sel.textContent='الشركة المحددة: '+c.name;frm.company_name_project.value=c.name;frm.governorate_name.value=c.governorate;frm.granting_license_approval.value=c.approval;frm.license_approval_number.value=c.license;frm.brand.value=c.brand}cards.forEach(x=>x.onclick=()=>set(JSON.parse(x.dataset.c),x));q.oninput=()=>{const s=q.value.toLowerCase();cards.forEach(x=>{const c=JSON.parse(x.dataset.c);x.style.display=(c.name+c.owner+c.governorate+c.license).toLowerCase().includes(s)?'block':'none'})};frm.onsubmit=async e=>{e.preventDefault();const doc=Object.fromEntries(new FormData(frm).entries());doc.generated_at=new Date().toISOString();const r=await fetch('/api/create-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(doc)});const d=await r.json();if(!d.success){alert(d.message||'فشل الإنشاء');return}location.href=d.pdf_url};</script></body></html>`}
-function docCss(){return `@page{size:A4;margin:0}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}html,body{margin:0;padding:0;background:#e9ecef;font-family:"Cairo",Arial,sans-serif}.toolbar{width:210mm;margin:6mm auto 0;display:flex;justify-content:center;gap:8px}.toolbar button,.toolbar a{border:0;border-radius:8px;padding:9px 14px;font-family:"Cairo",Arial,sans-serif;font-weight:800;cursor:pointer;text-decoration:none}.toolbar .primary{background:#a40000;color:#fff}.toolbar .secondary{background:#e5e7eb;color:#111}.a4-page{width:210mm;min-height:297mm;margin:10mm auto;padding:11mm 13mm 9mm;position:relative;background:#fff;color:#222;direction:rtl;text-align:right;font-size:10pt;box-shadow:0 4px 20px rgba(0,0,0,.15)}.header-clean{display:grid;grid-template-columns:1fr 40mm 1fr;align-items:start;min-height:31mm;font-size:9pt;font-weight:300;line-height:1.65}.header-right,.header-left{padding-top:8mm}.header-right{padding-top:10mm;padding-right:0;font-weight:400;line-height:1.4;text-align:right}.header-center{text-align:center;padding-top:3mm}.logo-ring{width:24mm;height:25mm;margin:0 auto;display:flex;align-items:center;justify-content:center;border:2px solid #d8d8d8;border-radius:50%;background:#fff;overflow:hidden}.center-logo{width:22mm;height:22mm;object-fit:contain}.meta-line{display:grid;grid-template-columns:35mm 1fr;gap:2mm;font-size:9.5pt;font-weight:700}.meta-label{text-align:right;font-weight:800}.meta-value{direction:ltr;text-align:left;font-weight:300;white-space:pre-line}.divider{margin:0 0 2mm;border:0;border-top:1px solid #d8d8d8}.doc-title{margin:0 0 4px;font-size:14pt;font-weight:500}.subject-row{min-height:7mm;margin-bottom:2mm;padding:0;display:flex;align-items:center;gap:6mm;font-size:10.5pt;font-weight:900;border:0;background:transparent}.subject-row strong{white-space:nowrap}.subject-box{display:inline-block;min-width:125mm;padding:1mm 3mm;padding-right:12mm;margin-right:-8mm;border:1px solid transparent;border-radius:8px;background:transparent}.info-table{width:101%;border-collapse:collapse;table-layout:fixed;direction:rtl;line-height:1.25}.info-table .col-right{width:35%}.info-table .col-left{width:65%}.info-table th,.info-table td{height:6mm;padding:0mm 1.5mm;border:1px solid #d6d6d6;text-align:right;vertical-align:middle;font-size:10pt}.info-table th{height:7mm;background:#a40000;color:#fff;text-align:center;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}.info-table td{color:#222;font-weight:600}.info-table .full-row{text-align:center;font-weight:700}.qr-wrap{display:flex;justify-content:center;align-items:center;margin:4mm 0;min-height:36mm}.barcode-box,.qr-wrap .barcode-img,.qr-wrap img{width:34mm;height:34mm;max-width:34mm;max-height:34mm;display:block;background:#fff;border:1px solid #F2F2F2;object-fit:contain;object-position:center;image-rendering:auto;padding:1mm;box-sizing:border-box;overflow:hidden}.notes{text-align:center;font-size:9pt;line-height:1.5}.notes p{margin:0}.notes .light-note{color:#777}.notes b,.notes a{color:#1d66d1;font-weight:700;text-decoration:none}.doc-footer{position:absolute;right:13mm;bottom:7mm;left:13mm;padding-top:2mm;display:grid;grid-template-columns:1fr 1.5fr 1fr;align-items:end;border-top:1px solid #d9d9d9;font-size:7pt;font-weight:800;line-height:1.35}.bottom-right-logo{position:absolute;right:0;top:1mm;width:10mm;height:auto;object-fit:contain}.footer-center{text-align:center}.footer-right{direction:ltr;text-align:left;font-size:7pt;font-weight:400}.watermark{position:absolute;top:49%;right:50%;transform:translate(50%,-50%) rotate(-28deg);font-size:34pt;font-weight:900;color:#a40000;opacity:.06;white-space:nowrap;z-index:0}.stamp{position:absolute;right:25mm;bottom:24mm;width:30mm;height:30mm;border:2px solid #a40000;border-radius:50%;display:grid;place-items:center;text-align:center;color:#a40000;font-weight:900;transform:rotate(-10deg);opacity:.55}.signature{position:absolute;left:24mm;bottom:29mm;width:38mm;text-align:center;font-size:8pt}.signature:before{content:"";display:block;border-bottom:1px solid #333;margin-bottom:2mm;height:10mm}.content-layer{position:relative;z-index:1}@media print{body{background:#fff}.toolbar{display:none!important}.a4-page{margin:0;box-shadow:none}}`}
-function doc(d,tok,req,print=false){const tm=new Date(d.generated_at||Date.now()).toLocaleTimeString("ar-IQ",{hour:"2-digit",minute:"2-digit"});const link=`${base(req)}/document?d=${encodeURIComponent(tok)}`;const qr=`https://api.qrserver.com/v1/create-qr-code/?size=270x270&data=${encodeURIComponent(link)}`;const row=(a,b)=>`<tr><td>${a}</td><td>${esc(b)}</td></tr>`;const tool=print?`<div class="toolbar"><button class="primary" onclick="window.print()">حفظ PDF</button><a class="secondary" href="/document?d=${encodeURIComponent(tok)}">عرض</a></div>`:"";return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(d.doc_id)}</title><style>${docCss()}</style></head><body>${tool}<div class="a4-page"><div class="watermark">${ORG.wm}</div><div class="content-layer"><header class="header-clean"><div class="header-right"><div>${ORG.ar}</div><div>${ORG.dept}</div><div>${ORG.addr}</div></div><div class="header-center"><div class="logo-ring"><div class="center-logo" style="display:flex;align-items:center;justify-content:center;font-weight:900;color:#a40000;font-size:14pt">${ORG.mark}</div></div></div><div class="header-left"><div class="meta-line"><span class="meta-label">رقم الوثيقة</span><span class="meta-value">${esc(d.doc_id)}</span></div><div class="meta-line"><span class="meta-label">تاريخ إنشاء الوثيقة</span><span class="meta-value">${esc(d.created_at)}</span></div><div class="meta-line"><span class="meta-label">التوقيت</span><span class="meta-value">${esc(tm)}</span></div></div></header><hr class="divider"><h1 class="doc-title">وثيقة نقل داخلية للشركة</h1><div class="subject-row"><strong>الموضوع /</strong><span class="subject-box">${esc(d.subject)}</span></div><table class="info-table"><colgroup><col class="col-right"><col class="col-left"></colgroup><tbody><tr><th colspan="2">المعلومات التشغيلية</th></tr>${row("نقطة الدخول / التسليم",d.checkpoint_name_control)}${row("اسم السائق",d.driver_name)}${row("رقم العجلة",d.vehicle_number)}${row("محافظة تسجيل العجلة",d.registration_governorate)}${row("نوع / تفاصيل الحمولة",d.cargo_typedetails)}${row("الوزن / الكمية",d.weight_quantity)}${row("الوجهة النهائية / المحافظة",d.destination_governorate)}${row("اسم المحافظة",d.governorate_name)}${row("اسم الشركة / المشروع",d.company_name_project)}${row("الجهة المانحة للاعتماد",d.granting_license_approval)}${row("رقم الاعتماد",d.license_approval_number)}${row("تاريخ الاعتماد",d.license_approval_date)}${row("منطوق الاعتماد / الاختصاص",d.license_text_specialization)}${row("العلامة التجارية",d.brand)}<tr><th colspan="2">المواد / المنتجات</th></tr>${row(d.item_name,d.item_quantity)}</tbody></table><div class="qr-wrap"><img class="barcode-img" src="${qr}" alt="QR"></div><div class="notes"><p>هذه وثيقة صادرة من نظام الشركة الداخلي.</p><p class="light-note">يتم التحقق من QR داخل نظام الشركة فقط.</p><p><b>${esc(tok)}</b></p></div></div><div class="stamp">ختم<br>${ORG.mark}</div><div class="signature">توقيع المخوّل</div><footer class="doc-footer"><div class="footer-left">${ORG.phone}</div><div class="footer-center">${ORG.ar}<br>وثيقة داخلية</div><div class="footer-right">${ORG.en}<br>Company Document</div></footer></div>${print?"<script>setTimeout(()=>window.print(),700)</script>":""}</body></html>`}
-function reader(){return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>قراءة QR</title><style>${appCss}.reader{max-width:820px;margin:auto}.result{margin-top:18px;background:#fff;border:1px solid #ddd;border-radius:14px;padding:14px;line-height:1.9}</style></head><body>${nav()}<main class="main reader"><section class="panel"><div class="head"><h1>قراءة QR</h1><p>ضع رقم الوثيقة أو الكود.</p></div><div style="padding:22px"><input id="qr" class="input" style="direction:ltr" placeholder="DOC-1001"><br><br><button class="btn" onclick="go()">قراءة</button><div id="out" class="result" style="display:none"></div></div></section></main><script>async function go(){out.style.display='block';out.innerHTML='جاري القراءة...';const r=await fetch('/api/read-qr',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({QRcode:qr.value})});const d=await r.json();out.innerHTML=d.success?'<b style="color:green">Valid</b><p>السائق: '+d.data.info.fullName+'</p><p>الشركة: '+d.data.info.orgName+'</p><a href="'+d.data.pdfUrl+'" target="_blank">فتح PDF</a>':'لم يتم العثور على الوثيقة'}</script></body></html>`}
-export default{async fetch(request,env){const u=new URL(request.url),p=u.pathname;if(request.method==="OPTIONS")return json({ok:true});if(p==="/")return Response.redirect(`${base(request)}/company-owner`,302);if(["/company-owner","/owners","/create"].includes(p))return html(form());if(["/ReadQrWithUR","/qr-reader"].includes(p))return html(reader());if(p==="/api/create-token"&&request.method==="POST"){let body={};try{body=await request.json()}catch{}const d=norm(body);if(env&&env.DOCS)await env.DOCS.put(d.doc_id,JSON.stringify(d));const tk=token(d.doc_id);return json({success:true,doc_id:d.doc_id,token:tk,url:`${base(request)}/document?d=${encodeURIComponent(tk)}`,pdf_url:`${base(request)}/pdf?d=${encodeURIComponent(tk)}`})}if(p==="/document"||p==="/pdf"){const d=await load(u.searchParams.get("d"),env);if(!d)return html("<h2>لم يتم العثور على الوثيقة</h2>",404);return html(doc(d,token(d.doc_id),request,p==="/pdf"))}if(p==="/api/read-qr"&&request.method==="POST"){let body={};try{body=await request.json()}catch{}const d=await load(body.QRcode||body.code,env);if(!d)return json({success:false},404);const tk=token(d.doc_id);return json({success:true,data:{info:{fullName:d.driver_name,orgName:d.company_name_project},documentUrl:`${base(request)}/document?d=${encodeURIComponent(tk)}`,pdfUrl:`${base(request)}/pdf?d=${encodeURIComponent(tk)}`,document:d,token:tk}})}return html("<h1>404</h1>",404)}};
+
+const demo = {
+  "DOC-1001": {
+    doc_id: "DOC-1001",
+    created_at: "2026-07-10",
+    checkpoint_name_control: "بوابة الشركة الرئيسية",
+    driver_name: "جلال مهدي",
+    vehicle_number: "42040 دهوك",
+    registration_governorate: "دهوك",
+    cargo_typedetails: "مواد تجارية",
+    weight_quantity: "100 كرتون",
+    destination_governorate: "أربيل",
+    governorate_name: "دهوك",
+    company_name_project: "شركة الغدير للنقل والتجارة",
+    granting_license_approval: "إدارة مجموعة عبد الستار",
+    license_approval_number: "ALG-1001",
+    license_approval_date: "2026-07-10",
+    license_text_specialization: "موافقة نقل داخلية للشركة",
+    brand: "ALGHADIR",
+    item_name: "مواد تجارية",
+    item_quantity: "100 كرتون",
+    numberOfVersion: 1,
+    generated_at: "2026-07-10T18:47:09.090Z",
+    note: "وثيقة شركة داخلية"
+  }
+};
+
+const esc = v => String(v ?? "")
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;");
+
+const html = (s, st = 200) => new Response(s, {
+  status: st,
+  headers: {
+    "content-type": "text/html; charset=utf-8"
+  }
+});
+
+const json = (d, st = 200) => new Response(JSON.stringify(d, null, 2), {
+  status: st,
+  headers: {
+    "content-type": "application/json; charset=utf-8",
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-headers": "content-type"
+  }
+});
+
+const base = req => {
+  const u = new URL(req.url);
+  return `${u.protocol}//${u.host}`;
+};
+
+function b64u(t) {
+  let b = "";
+
+  for (const x of enc.encode(t)) {
+    b += String.fromCharCode(x);
+  }
+
+  return btoa(b)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+}
+
+function ub64(t) {
+  const p = "=".repeat((4 - t.length % 4) % 4);
+  const b = atob(t.replaceAll("-", "+").replaceAll("_", "/") + p);
+
+  return dec.decode(
+    Uint8Array.from(b, c => c.charCodeAt(0))
+  );
+}
+
+function token(id) {
+  return TOKEN_PREFIX +
+    b64u(JSON.stringify({ id: String(id) })) +
+    TOKEN_SUFFIX;
+}
+
+function idFrom(v) {
+  let r = String(v || "").trim();
+
+  if (r.startsWith("http")) {
+    const u = new URL(r);
+    r = u.searchParams.get("d") || r;
+  }
+
+  if (r.includes("|local_company")) {
+    r = r.split("|local_company")[0];
+  }
+
+  if (r.startsWith(TOKEN_PREFIX)) {
+    try {
+      return JSON.parse(
+        ub64(r.slice(TOKEN_PREFIX.length))
+      ).id;
+    } catch {}
+  }
+
+  return r;
+}
+
+function norm(d) {
+  return {
+    doc_id:
+      d.doc_id ||
+      `DOC-${Date.now().toString().slice(-6)}`,
+
+    created_at:
+      d.created_at ||
+      new Date().toISOString().slice(0, 10),
+
+    subject:
+      "وثيقة نقل داخلية للشركة",
+
+    checkpoint_name_control:
+      d.checkpoint_name_control || "-",
+
+    driver_name:
+      d.driver_name || "-",
+
+    vehicle_number:
+      d.vehicle_number || "-",
+
+    registration_governorate:
+      d.registration_governorate || "-",
+
+    cargo_typedetails:
+      d.cargo_typedetails || "-",
+
+    weight_quantity:
+      d.weight_quantity || "-",
+
+    destination_governorate:
+      d.destination_governorate || "-",
+
+    governorate_name:
+      d.governorate_name || "-",
+
+    company_name_project:
+      d.company_name_project || "-",
+
+    granting_license_approval:
+      d.granting_license_approval || ORG.dept,
+
+    license_approval_number:
+      d.license_approval_number || "-",
+
+    license_approval_date:
+      d.license_approval_date ||
+      d.created_at ||
+      new Date().toISOString().slice(0, 10),
+
+    license_text_specialization:
+      d.license_text_specialization ||
+      "موافقة نقل داخلية للشركة",
+
+    brand:
+      d.brand || "-",
+
+    item_name:
+      d.item_name || "-",
+
+    item_quantity:
+      d.item_quantity || "-",
+
+    numberOfVersion:
+      Number(d.numberOfVersion || 1),
+
+    generated_at:
+      d.generated_at || new Date().toISOString(),
+
+    note:
+      d.note || "وثيقة شركة داخلية"
+  };
+}
+
+async function load(id, env) {
+  const k = idFrom(id);
+
+  if (env && env.DOCS) {
+    const s = await env.DOCS.get(k);
+
+    if (s) {
+      return norm(JSON.parse(s));
+    }
+  }
+
+  return demo[k] ? norm(demo[k]) : null;
+}
+
+const appCss = `
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #eef1f5;
+  color: #111;
+  font-family: Arial, sans-serif;
+}
+
+.top {
+  background: #fff;
+  border-bottom: 1px solid #d9dee7;
+  box-shadow: 0 2px 14px #0001;
+}
+
+.topin {
+  max-width: 1180px;
+  margin: auto;
+  min-height: 70px;
+  padding: 10px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-weight: 900;
+}
+
+.seal {
+  width: 46px;
+  height: 46px;
+  border: 2px solid #12315d;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #12315d;
+}
+
+.nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nav a,
+.tag {
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.nav a {
+  background: #f3f5f8;
+  color: #222;
+}
+
+.tag {
+  background: #fff7df;
+  color: #7a5600;
+  border: 1px solid #e7c76c;
+}
+
+.main {
+  max-width: 1180px;
+  margin: auto;
+  padding: 24px 16px;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #e1e5ec;
+  border-radius: 20px;
+  box-shadow: 0 14px 36px #0001;
+  overflow: hidden;
+}
+
+.head {
+  padding: 22px 24px;
+  border-bottom: 1px solid #e9edf3;
+}
+
+.head h1 {
+  margin: 0 0 8px;
+}
+
+.head p {
+  margin: 0;
+  color: #666;
+  line-height: 1.7;
+}
+
+.layout {
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 18px;
+}
+
+.side {
+  background: #fafbfc;
+  border: 1px solid #e5e9ef;
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.input,
+textarea {
+  width: 100%;
+  border: 1px solid #d3d9e3;
+  border-radius: 12px;
+  padding: 12px 13px;
+  font-size: 15px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e1e5ec;
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+.card.active,
+.card:hover {
+  border-color: #12315d;
+  box-shadow: 0 0 0 3px #12315d18;
+}
+
+.meta {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.sel {
+  background: #f7f0dc;
+  border: 1px solid #e5c66d;
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 14px;
+  font-weight: 900;
+  color: #573f00;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+label {
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: 0;
+  border-radius: 12px;
+  padding: 13px 18px;
+  background: #12315d;
+  color: #fff;
+  font-weight: 900;
+}
+
+.gold {
+  background: #b38a22;
+}
+
+.ghost {
+  background: #f1f3f6;
+  color: #111;
+}
+
+.foot {
+  text-align: center;
+  padding: 18px;
+  border-top: 1px solid #dde3ec;
+  background: #fff;
+  color: #777;
+}
+
+@media (max-width: 900px) {
+  .layout,
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topin {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}
+`;
+
+function nav() {
+  return `
+  <div class="top">
+    <div class="topin">
+      <div class="brand">
+        <div class="seal">${ORG.mark}</div>
+
+        <div>
+          ${ORG.ar}<br>
+          <small style="color:#666">
+            ${ORG.dept}
+          </small>
+        </div>
+      </div>
+
+      <div class="nav">
+        <a href="/company-owner">
+          أصحاب الشركات
+        </a>
+
+        <a href="/ReadQrWithUR">
+          قراءة QR
+        </a>
+
+        <span class="tag">
+          وثائق شركة
+        </span>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+function form() {
+  const today = new Date()
+    .toISOString()
+    .slice(0, 10);
+
+  const docId =
+    `DOC-${Date.now().toString().slice(-6)}`;
+
+  const cs = companies.map((c, i) => `
+    <div
+      class="card ${i === 0 ? "active" : ""}"
+      data-c='${JSON.stringify(c).replaceAll("'", "&#39;")}'
+    >
+      <b>${esc(c.name)}</b>
+
+      <div class="meta">
+        المسؤول: ${esc(c.owner)}<br>
+        المحافظة: ${esc(c.governorate)}
+        -
+        رقم الاعتماد: ${esc(c.license)}
+      </div>
+    </div>
+  `).join("");
+
+  const f = [
+    [
+      "doc_id",
+      "رقم الوثيقة",
+      docId,
+      "text"
+    ],
+    [
+      "created_at",
+      "تاريخ إنشاء الوثيقة",
+      today,
+      "date"
+    ],
+    [
+      "company_name_project",
+      "اسم الشركة / المشروع",
+      companies[0].name,
+      "text"
+    ],
+    [
+      "governorate_name",
+      "اسم المحافظة",
+      companies[0].governorate,
+      "text"
+    ],
+    [
+      "granting_license_approval",
+      "الجهة المانحة للاعتماد",
+      companies[0].approval,
+      "text"
+    ],
+    [
+      "license_approval_number",
+      "رقم الاعتماد",
+      companies[0].license,
+      "text"
+    ],
+    [
+      "license_approval_date",
+      "تاريخ الاعتماد",
+      today,
+      "date"
+    ],
+    [
+      "brand",
+      "العلامة التجارية",
+      companies[0].brand,
+      "text"
+    ],
+    [
+      "checkpoint_name_control",
+      "نقطة الدخول / التسليم",
+      "بوابة الشركة الرئيسية",
+      "text"
+    ],
+    [
+      "driver_name",
+      "اسم السائق",
+      "جلال مهدي",
+      "text"
+    ],
+    [
+      "vehicle_number",
+      "رقم العجلة",
+      "42040 دهوك",
+      "text"
+    ],
+    [
+      "registration_governorate",
+      "محافظة تسجيل العجلة",
+      "دهوك",
+      "text"
+    ],
+    [
+      "cargo_typedetails",
+      "نوع / تفاصيل الحمولة",
+      "مواد تجارية",
+      "text"
+    ],
+    [
+      "weight_quantity",
+      "الوزن / الكمية",
+      "100 كرتون",
+      "text"
+    ],
+    [
+      "destination_governorate",
+      "الوجهة النهائية / المحافظة",
+      "أربيل",
+      "text"
+    ],
+    [
+      "license_text_specialization",
+      "منطوق الاعتماد / الاختصاص",
+      "موافقة نقل داخلية للشركة",
+      "text"
+    ],
+    [
+      "item_name",
+      "اسم المادة / المنتج",
+      "مواد تجارية",
+      "text"
+    ],
+    [
+      "item_quantity",
+      "كمية المنتج",
+      "100 كرتون",
+      "text"
+    ]
+  ].map(x => `
+    <div class="field">
+      <label>${x[1]}</label>
+
+      <input
+        class="input"
+        name="${x[0]}"
+        type="${x[3]}"
+        value="${esc(x[2])}"
+      >
+    </div>
+  `).join("");
+
+  return `<!doctype html>
+  <html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1"
+    >
+
+    <title>
+      أصحاب الشركات
+    </title>
+
+    <style>
+      ${appCss}
+    </style>
+  </head>
+
+  <body>
+    ${nav()}
+
+    <main class="main">
+      <section class="panel">
+        <div class="head">
+          <h1>
+            بوابة أصحاب الشركات
+          </h1>
+
+          <p>
+            نفس أماكن الكتابات المهمة:
+            رأس الصفحة، بيانات الوثيقة،
+            الموضوع، الجدول، QR، والتذييل،
+            مع هوامش A4 مرتبة.
+          </p>
+        </div>
+
+        <div class="layout">
+          <aside class="side">
+            <input
+              id="q"
+              class="input"
+              placeholder="بحث عن شركة أو محافظة"
+            >
+
+            <div id="list">
+              ${cs}
+            </div>
+          </aside>
+
+          <section>
+            <div class="sel" id="sel">
+              الشركة المحددة:
+              ${companies[0].name}
+            </div>
+
+            <form id="frm">
+              <div class="grid">
+                ${f}
+
+                <div class="field full">
+                  <label>
+                    ملاحظة
+                  </label>
+
+                  <textarea
+                    name="note"
+                    rows="3"
+                  >وثيقة شركة داخلية</textarea>
+                </div>
+              </div>
+
+              <div class="actions">
+                <button class="btn">
+                  إنشاء PDF
+                </button>
+
+                <button
+                  class="btn gold"
+                  type="button"
+                  onclick="location.href='/pdf?d=DOC-1001'"
+                >
+                  PDF مثال
+                </button>
+
+                <button
+                  class="btn ghost"
+                  type="button"
+                  onclick="location.href='/ReadQrWithUR'"
+                >
+                  قراءة QR
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <div class="foot">
+      ${ORG.en}
+    </div>
+
+    <script>
+      const cards = [
+        ...document.querySelectorAll('.card')
+      ];
+
+      const frm =
+        document.getElementById('frm');
+
+      function set(c, e) {
+        cards.forEach(x => {
+          x.classList.remove('active');
+        });
+
+        if (e) {
+          e.classList.add('active');
+        }
+
+        sel.textContent =
+          'الشركة المحددة: ' + c.name;
+
+        frm.company_name_project.value =
+          c.name;
+
+        frm.governorate_name.value =
+          c.governorate;
+
+        frm.granting_license_approval.value =
+          c.approval;
+
+        frm.license_approval_number.value =
+          c.license;
+
+        frm.brand.value =
+          c.brand;
+      }
+
+      cards.forEach(x => {
+        x.onclick = () => {
+          set(
+            JSON.parse(x.dataset.c),
+            x
+          );
+        };
+      });
+
+      q.oninput = () => {
+        const s =
+          q.value.toLowerCase();
+
+        cards.forEach(x => {
+          const c =
+            JSON.parse(x.dataset.c);
+
+          const text =
+            c.name +
+            c.owner +
+            c.governorate +
+            c.license;
+
+          x.style.display =
+            text.toLowerCase().includes(s)
+              ? 'block'
+              : 'none';
+        });
+      };
+
+      frm.onsubmit = async e => {
+        e.preventDefault();
+
+        const doc =
+          Object.fromEntries(
+            new FormData(frm).entries()
+          );
+
+        doc.generated_at =
+          new Date().toISOString();
+
+        const r = await fetch(
+          '/api/create-token',
+          {
+            method: 'POST',
+            headers: {
+              'content-type':
+                'application/json'
+            },
+            body: JSON.stringify(doc)
+          }
+        );
+
+        const d =
+          await r.json();
+
+        if (!d.success) {
+          alert(
+            d.message ||
+            'فشل الإنشاء'
+          );
+
+          return;
+        }
+
+        location.href =
+          d.pdf_url;
+      };
+    </script>
+  </body>
+  </html>`;
+}
+
+function docCss() {
+  return `
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #e9ecef;
+    font-family: "Cairo", Arial, sans-serif;
+  }
+
+  .toolbar {
+    width: 210mm;
+    margin: 6mm auto 0;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .toolbar button,
+  .toolbar a {
+    border: 0;
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-family: "Cairo", Arial, sans-serif;
+    font-weight: 800;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .toolbar .primary {
+    background: #a40000;
+    color: #fff;
+  }
+
+  .toolbar .secondary {
+    background: #e5e7eb;
+    color: #111;
+  }
+
+  .a4-page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 10mm auto;
+    padding: 11mm 13mm 9mm;
+    position: relative;
+    background: #fff;
+    color: #222;
+    direction: rtl;
+    text-align: right;
+    font-size: 10pt;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, .15);
+  }
+
+  /* Header */
+  .header-clean {
+    display: grid;
+    grid-template-columns: 1fr 40mm 1fr;
+    align-items: start;
+    min-height: 31mm;
+    font-size: 9pt;
+    font-weight: 300;
+    line-height: 1.65;
+  }
+
+  .header-right,
+  .header-left {
+    padding-top: 8mm;
+  }
+
+  .header-right {
+    padding-top: 10mm;
+    padding-right: 0;
+    font-weight: 400;
+    line-height: 1.4;
+    text-align: right;
+  }
+
+  .header-center {
+    text-align: center;
+    padding-top: 3mm;
+  }
+
+  .logo-ring {
+    width: 24mm;
+    height: 25mm;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #d8d8d8;
+    border-radius: 50%;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .center-logo {
+    width: 22mm;
+    height: 22mm;
+    object-fit: contain;
+  }
+
+  .meta-line {
+    display: grid;
+    grid-template-columns: 35mm 1fr;
+    gap: 2mm;
+    font-size: 9.5pt;
+    font-weight: 700;
+  }
+
+  .meta-label {
+    text-align: right;
+    font-weight: 800;
+  }
+
+  .meta-value {
+    direction: ltr;
+    text-align: left;
+    font-weight: 300;
+    white-space: pre-line;
+  }
+
+  .divider {
+    margin: 0 0 2mm;
+    border: 0;
+    border-top: 1px solid #d8d8d8;
+  }
+
+  /* Content */
+  .doc-title {
+    margin: 0 0 4px;
+    font-size: 14pt;
+    font-weight: 500;
+  }
+
+  .subject-row {
+    min-height: 7mm;
+    margin-bottom: 2mm;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 6mm;
+    font-size: 10.5pt;
+    font-weight: 900;
+    border: 0;
+    background: transparent;
+  }
+
+  .subject-row strong {
+    white-space: nowrap;
+  }
+
+  .subject-box {
+    display: inline-block;
+    min-width: 125mm;
+    padding: 1mm 3mm;
+    padding-right: 12mm;
+    margin-right: -8mm;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+  }
+
+  /* Table */
+  .info-table {
+    width: 101%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    direction: rtl;
+    line-height: 1.25;
+  }
+
+  .info-table .col-right {
+    width: 35%;
+  }
+
+  .info-table .col-left {
+    width: 65%;
+  }
+
+  .info-table th,
+  .info-table td {
+    height: 6mm;
+    padding: 0mm 1.5mm;
+    border: 1px solid #d6d6d6;
+    text-align: right;
+    vertical-align: middle;
+    font-size: 10pt;
+  }
+
+  .info-table th {
+    height: 7mm;
+    background: #a40000;
+    color: #fff;
+    text-align: center;
+    font-weight: 700;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .info-table td {
+    color: #222;
+    font-weight: 600;
+  }
+
+  .info-table .full-row {
+    text-align: center;
+    font-weight: 700;
+  }
+
+  /* QR Placeholder */
+  .qr-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 4mm 0;
+    min-height: 36mm;
+  }
+
+  .barcode-box,
+  .qr-wrap .barcode-img,
+  .qr-wrap img {
+    width: 34mm;
+    height: 34mm;
+    max-width: 34mm;
+    max-height: 34mm;
+    display: block;
+    background: #fff;
+    border: 1px solid #F2F2F2;
+    object-fit: contain;
+    object-position: center;
+    image-rendering: auto;
+    padding: 1mm;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  /* Notes */
+  .notes {
+    text-align: center;
+    font-size: 9pt;
+    line-height: 1.5;
+  }
+
+  .notes p {
+    margin: 0;
+  }
+
+  .notes .light-note {
+    color: #777;
+  }
+
+  .notes b,
+  .notes a {
+    color: #1d66d1;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  /* Footer */
+  .doc-footer {
+    position: absolute;
+    right: 13mm;
+    bottom: 7mm;
+    left: 13mm;
+    padding-top: 2mm;
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 1fr;
+    align-items: end;
+    border-top: 1px solid #d9d9d9;
+    font-size: 7pt;
+    font-weight: 800;
+    line-height: 1.35;
+  }
+
+  .bottom-right-logo {
+    position: absolute;
+    right: 0;
+    top: 1mm;
+    width: 10mm;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .footer-center {
+    text-align: center;
+  }
+
+  .footer-right {
+    direction: ltr;
+    text-align: left;
+    font-size: 7pt;
+    font-weight: 400;
+  }
+
+  @media print {
+    body {
+      background: #fff;
+    }
+
+    .toolbar {
+      display: none !important;
+    }
+
+    .a4-page {
+      margin: 0;
+      box-shadow: none;
+    }
+  }
+  `;
+}
+
+function doc(d, tok, req, print = false) {
+  const tm = new Date(
+    d.generated_at || Date.now()
+  ).toLocaleTimeString(
+    "ar-IQ",
+    {
+      hour: "2-digit",
+      minute: "2-digit"
+    }
+  );
+
+  const link =
+    `${base(req)}/document?d=${encodeURIComponent(tok)}`;
+
+  const qr =
+    `https://api.qrserver.com/v1/create-qr-code/?size=270x270&data=${encodeURIComponent(link)}`;
+
+  const row = (a, b) =>
+    `<tr>
+      <td>${a}</td>
+      <td>${esc(b)}</td>
+    </tr>`;
+
+  const tool = print
+    ? `
+      <div class="toolbar">
+        <button
+          class="primary"
+          onclick="window.print()"
+        >
+          حفظ PDF
+        </button>
+
+        <a
+          class="secondary"
+          href="/document?d=${encodeURIComponent(tok)}"
+        >
+          عرض
+        </a>
+      </div>
+    `
+    : "";
+
+  return `<!doctype html>
+  <html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1"
+    >
+
+    <title>
+      ${esc(d.doc_id)}
+    </title>
+
+    <style>
+      ${docCss()}
+    </style>
+  </head>
+
+  <body>
+    ${tool}
+
+    <div class="a4-page">
+      <header class="header-clean">
+        <div class="header-right">
+          <div>
+            ${ORG.ar}
+          </div>
+
+          <div>
+            ${ORG.dept}
+          </div>
+
+          <div>
+            ${ORG.addr}
+          </div>
+        </div>
+
+        <div class="header-center">
+          <div class="logo-ring">
+            <div
+              class="center-logo"
+              style="
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                font-weight:900;
+                color:#a40000;
+                font-size:14pt
+              "
+            >
+              ${ORG.mark}
+            </div>
+          </div>
+        </div>
+
+        <div class="header-left">
+          <div class="meta-line">
+            <span class="meta-label">
+              رقم الوثيقة
+            </span>
+
+            <span class="meta-value">
+              ${esc(d.doc_id)}
+            </span>
+          </div>
+
+          <div class="meta-line">
+            <span class="meta-label">
+              تاريخ إنشاء الوثيقة
+            </span>
+
+            <span class="meta-value">
+              ${esc(d.created_at)}
+            </span>
+          </div>
+
+          <div class="meta-line">
+            <span class="meta-label">
+              التوقيت
+            </span>
+
+            <span class="meta-value">
+              ${esc(tm)}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <hr class="divider">
+
+      <h1 class="doc-title">
+        وثيقة نقل داخلية للشركة
+      </h1>
+
+      <div class="subject-row">
+        <strong>
+          الموضوع /
+        </strong>
+
+        <span class="subject-box">
+          ${esc(d.subject)}
+        </span>
+      </div>
+
+      <table class="info-table">
+        <colgroup>
+          <col class="col-right">
+          <col class="col-left">
+        </colgroup>
+
+        <tbody>
+          <tr>
+            <th colspan="2">
+              المعلومات التشغيلية
+            </th>
+          </tr>
+
+          ${row(
+            "نقطة الدخول / التسليم",
+            d.checkpoint_name_control
+          )}
+
+          ${row(
+            "اسم السائق",
+            d.driver_name
+          )}
+
+          ${row(
+            "رقم العجلة",
+            d.vehicle_number
+          )}
+
+          ${row(
+            "محافظة تسجيل العجلة",
+            d.registration_governorate
+          )}
+
+          ${row(
+            "نوع / تفاصيل الحمولة",
+            d.cargo_typedetails
+          )}
+
+          ${row(
+            "الوزن / الكمية",
+            d.weight_quantity
+          )}
+
+          ${row(
+            "الوجهة النهائية / المحافظة",
+            d.destination_governorate
+          )}
+
+          ${row(
+            "اسم المحافظة",
+            d.governorate_name
+          )}
+
+          ${row(
+            "اسم الشركة / المشروع",
+            d.company_name_project
+          )}
+
+          ${row(
+            "الجهة المانحة للاعتماد",
+            d.granting_license_approval
+          )}
+
+          ${row(
+            "رقم الاعتماد",
+            d.license_approval_number
+          )}
+
+          ${row(
+            "تاريخ الاعتماد",
+            d.license_approval_date
+          )}
+
+          ${row(
+            "منطوق الاعتماد / الاختصاص",
+            d.license_text_specialization
+          )}
+
+          ${row(
+            "العلامة التجارية",
+            d.brand
+          )}
+
+          <tr>
+            <th colspan="2">
+              المواد / المنتجات
+            </th>
+          </tr>
+
+          ${row(
+            d.item_name,
+            d.item_quantity
+          )}
+        </tbody>
+      </table>
+
+      <div class="qr-wrap">
+        <img
+          class="barcode-img"
+          src="${qr}"
+          alt="QR"
+        >
+      </div>
+
+      <div class="notes">
+        <p>
+          هذه وثيقة صادرة من نظام الشركة الداخلي.
+        </p>
+
+        <p class="light-note">
+          يتم التحقق من QR داخل نظام الشركة فقط.
+        </p>
+
+        <p>
+          <b>${esc(tok)}</b>
+        </p>
+      </div>
+
+      <footer class="doc-footer">
+        <div class="footer-left">
+          ${ORG.phone}
+        </div>
+
+        <div class="footer-center">
+          ${ORG.ar}<br>
+          وثيقة داخلية
+        </div>
+
+        <div class="footer-right">
+          ${ORG.en}<br>
+          Company Document
+        </div>
+      </footer>
+    </div>
+
+    ${
+      print
+        ? `<script>
+            setTimeout(
+              () => window.print(),
+              700
+            );
+          </script>`
+        : ""
+    }
+  </body>
+  </html>`;
+}
+
+function reader() {
+  return `<!doctype html>
+  <html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1"
+    >
+
+    <title>
+      قراءة QR
+    </title>
+
+    <style>
+      ${appCss}
+
+      .reader {
+        max-width: 820px;
+        margin: auto;
+      }
+
+      .result {
+        margin-top: 18px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 14px;
+        padding: 14px;
+        line-height: 1.9;
+      }
+    </style>
+  </head>
+
+  <body>
+    ${nav()}
+
+    <main class="main reader">
+      <section class="panel">
+        <div class="head">
+          <h1>
+            قراءة QR
+          </h1>
+
+          <p>
+            ضع رقم الوثيقة أو الكود.
+          </p>
+        </div>
+
+        <div style="padding:22px">
+          <input
+            id="qr"
+            class="input"
+            style="direction:ltr"
+            placeholder="DOC-1001"
+          >
+
+          <br><br>
+
+          <button
+            class="btn"
+            onclick="go()"
+          >
+            قراءة
+          </button>
+
+          <div
+            id="out"
+            class="result"
+            style="display:none"
+          ></div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      async function go() {
+        out.style.display =
+          'block';
+
+        out.innerHTML =
+          'جاري القراءة...';
+
+        const r = await fetch(
+          '/api/read-qr',
+          {
+            method: 'POST',
+            headers: {
+              'content-type':
+                'application/json'
+            },
+            body: JSON.stringify({
+              QRcode: qr.value
+            })
+          }
+        );
+
+        const d =
+          await r.json();
+
+        out.innerHTML = d.success
+          ? '<b style="color:green">Valid</b>' +
+            '<p>السائق: ' +
+            d.data.info.fullName +
+            '</p>' +
+            '<p>الشركة: ' +
+            d.data.info.orgName +
+            '</p>' +
+            '<a href="' +
+            d.data.pdfUrl +
+            '" target="_blank">فتح PDF</a>'
+          : 'لم يتم العثور على الوثيقة';
+      }
+    </script>
+  </body>
+  </html>`;
+}
+
+export default {
+  async fetch(request, env) {
+    const u =
+      new URL(request.url);
+
+    const p =
+      u.pathname;
+
+    if (request.method === "OPTIONS") {
+      return json({
+        ok: true
+      });
+    }
+
+    if (p === "/") {
+      return Response.redirect(
+        `${base(request)}/company-owner`,
+        302
+      );
+    }
+
+    if (
+      [
+        "/company-owner",
+        "/owners",
+        "/create"
+      ].includes(p)
+    ) {
+      return html(
+        form()
+      );
+    }
+
+    if (
+      [
+        "/ReadQrWithUR",
+        "/qr-reader"
+      ].includes(p)
+    ) {
+      return html(
+        reader()
+      );
+    }
+
+    if (
+      p === "/api/create-token" &&
+      request.method === "POST"
+    ) {
+      let body = {};
+
+      try {
+        body =
+          await request.json();
+      } catch {}
+
+      const d =
+        norm(body);
+
+      if (env && env.DOCS) {
+        await env.DOCS.put(
+          d.doc_id,
+          JSON.stringify(d)
+        );
+      }
+
+      const tk =
+        token(d.doc_id);
+
+      return json({
+        success: true,
+        doc_id: d.doc_id,
+        token: tk,
+
+        url:
+          `${base(request)}/document?d=${encodeURIComponent(tk)}`,
+
+        pdf_url:
+          `${base(request)}/pdf?d=${encodeURIComponent(tk)}`
+      });
+    }
+
+    if (
+      p === "/document" ||
+      p === "/pdf"
+    ) {
+      const d = await load(
+        u.searchParams.get("d"),
+        env
+      );
+
+      if (!d) {
+        return html(
+          "<h2>لم يتم العثور على الوثيقة</h2>",
+          404
+        );
+      }
+
+      return html(
+        doc(
+          d,
+          token(d.doc_id),
+          request,
+          p === "/pdf"
+        )
+      );
+    }
+
+    if (
+      p === "/api/read-qr" &&
+      request.method === "POST"
+    ) {
+      let body = {};
+
+      try {
+        body =
+          await request.json();
+      } catch {}
+
+      const d = await load(
+        body.QRcode ||
+        body.code,
+        env
+      );
+
+      if (!d) {
+        return json(
+          {
+            success: false
+          },
+          404
+        );
+      }
+
+      const tk =
+        token(d.doc_id);
+
+      return json({
+        success: true,
+
+        data: {
+          info: {
+            fullName:
+              d.driver_name,
+
+            orgName:
+              d.company_name_project
+          },
+
+          documentUrl:
+            `${base(request)}/document?d=${encodeURIComponent(tk)}`,
+
+          pdfUrl:
+            `${base(request)}/pdf?d=${encodeURIComponent(tk)}`,
+
+          document: d,
+          token: tk
+        }
+      });
+    }
+
+    return html(
+      "<h1>404</h1>",
+      404
+    );
+  }
+};
